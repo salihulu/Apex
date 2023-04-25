@@ -1,0 +1,46 @@
+public class BatchApexOrnek implements Database.Batchable<sObject> {
+    public Database.QueryLocator start(Database.BatchableContext BC) {
+        // collect the batches of records or objects to be passed to execute
+        // ilk yontem 
+       // String query = 'select id , name FROM account Where name like \'AAA%\' ';
+        
+        // ikinci yontem
+       // string ad= 'AAA%'
+      //  String query = 'select id , name FROM account Where name like ' + ad +' ' ;
+        return Database.getQueryLocator(([SELECT Id, BillingCountry, 
+                                        (SELECT id, MailingCountry FROM Contacts) 
+                                         FROM Account    
+                                         WHERE BillingCountry = 'TURKIYE']) );
+    }
+     
+    public void execute(Database.BatchableContext BC, List<Account> accList) {
+        List<Contact> cntList = new List<Contact>();
+        // process each batch of records default size is 200
+        for(Account acc : accList) {        
+            for(Contact cnt : acc.Contacts){
+                cnt.MailingCountry = acc.BillingCountry;
+               cntList.add(cnt);
+            }
+        }
+        try {
+            // Update the Account Record
+            update cntList;
+         
+        } catch(Exception e) {
+            System.debug(e);
+        }
+         
+    }   
+     
+    public void finish(Database.BatchableContext BC) {
+        // execute any post-processing operations like sending email
+    }
+    
+    
+}
+// ANONYMOUS WINDOW
+BatchApexOrnek armut = new BatchApexOrnek(); 
+ Id batchId = Database.executeBatch(armut , 80);
+AsyncApexJob job = [SELECT Id, Status, JobItemsProcessed, TotalJobItems, NumberOfErrors FROM AsyncApexJob WHERE ID = :batchId ];
+system.debug('Status ' + job.status );
+system.debug('NumberOfErrors ' + job.NumberOfErrors );
