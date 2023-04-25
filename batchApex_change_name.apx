@@ -1,0 +1,100 @@
+//Preparing developer org for batch apex
+
+//adding 300 accounts and contacts (added contacts by trigger) by anonymous window
+
+List <Account> accList = new List<Account>();
+For( integer i=1 ; i <301 ; i++){
+ Account newAcc= new Account();
+newAcc.name = 'AAA-' + i ;
+newAcc.BillingCity = 'Toronto';
+newAcc.BillingState = 'ON';
+newAcc.BillingCountry = 'CANADA';
+accList.add(newAcc);
+}
+System.debug(accList.size() + 'account created' );
+Database.insert(accList );
+
+//Trigger
+
+trigger accountTrigger on Account (before insert , before update , before delete , after insert , after update, after delete, after undelete) {
+ 
+    SWITCH on Trigger.operationType {
+       WHEN BEFORE_INSERT { }
+       WHEN BEFORE_UPDATE { }
+       WHEN BEFORE_DELETE { }
+       WHEN AFTER_INSERT  {
+            AccountTriggerAfterHandler.afterInsertHandler(Trigger.new);
+        }
+       WHEN AFTER_UPDATE  { }
+       WHEN AFTER_DELETE  { }
+       WHEN AFTER_UNDELETE { }
+   }
+}
+
+//accountTriggerAfterHandler.apxc
+
+public class AccountTriggerAfterHandler {
+    public static void afterInsertHandler(List<Account> accList){
+        List<Contact> cntList = new List<Contact>();
+          	for(Account accItem : accList){
+                
+                Contact cnt = new Contact();
+                cnt.FirstName = accItem.Name;
+                cnt.LastName = 'AAALastName';
+                cnt.AccountId = accItem.id;
+                
+                cntList.add(cnt);
+             }
+            insert cntList;
+    }
+    public static void afterUpdateHandler(){
+    }
+	public static void afterDeleteHandler(){
+    }
+}
+
+
+//Batch_apex.apxc
+
+public class BatchApexOrnek implements Database.Batchable<sObject> {
+    public Database.QueryLocator start(Database.BatchableContext BC) {
+        // collect the batches of records or objects to be passed to execute
+         
+        // String query = 'SELECT Id, Name FROM Account';
+        return Database.getQueryLocator([SELECT id, name FROM Account WHERE name LIKE 'AAA%']);
+    }
+     
+    public void execute(Database.BatchableContext BC, List<Account> accList) {
+        
+        // process each batch of records default size is 200
+        for(Account acc : accList) {        
+            // Update the Account Name 
+            acc.Name = acc.Name + ' Wise';
+        }
+        try {
+            // Update the Account Record
+            update accList;
+         
+        } catch(Exception e) {
+            System.debug(e);
+        }
+         
+    }   
+     
+    public void finish(Database.BatchableContext BC) {
+        // execute any post-processing operations like sending email
+    }
+}
+
+//anonymous window (Invoking a Batch Class)
+BatchApexOrnek invokeApex =new BatchApexOrnek();
+Database.executeBatch(batchApex);
+
+//anonymous window (Invoking a Batch Class) with AsyncApexJob job
+BatchApexOrnek invokeApex =new BatchApexOrnek();
+Id batchId Database.executeBatch(batchApex, 80);
+
+AsyncApexJob job = [SELECT Id, Status, JobItemsProcessed, TotalJobItems, NumberOfErrors FROM AsyncApexJob WHERE ID = :batchId ];
+System.debug('Status ' + job.status);
+System.debug('NumberofErrors ' + job.numberOfErrors );
+
