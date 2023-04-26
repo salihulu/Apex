@@ -25,3 +25,10 @@ public class ScheduleQueueableParent implements Schedulable {
 }
 
 // SF Setup > Home > Search: Apex Classes > Schedule Apex
+
+//Optional
+
+ScheduledMerge m = new ScheduledMerge();
+String sch = '20 30 8 10 2 ?';
+String jobID = System.schedule('Merge Job', sch, m);
+
